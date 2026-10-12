@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <title>FleetManager — Авторизация</title>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body class="login-page">
+    <div class="login-container">
+      <h1>FleetManager</h1>
+      <form id="login-form">
+        <div class="form-group">
+          <input type="text" name="login" placeholder="Логин" required />
+        </div>
+        <div class="form-group">
+          <input
+            type="password"
+            name="password"
+            placeholder="Пароль"
+            required
+          />
+        </div>
+        <button type="submit" class="btn btn-login">Войти</button>
+      </form>
+      <div class="link-row">
+        Нет аккаунта? <a href="register.html">Зарегистрироваться</a>
+      </div>
+      <div id="error-message" class="error-message hidden"></div>
+    </div>
+
+    <script>
+      document
+        .getElementById("login-form")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const errorBox = document.getElementById("error-message");
+          errorBox.classList.add("hidden");
+
+          const fd = new FormData(e.target);
+          const params = new URLSearchParams();
+          params.append("login", fd.get("login"));
+          params.append("password", fd.get("password"));
+
+          try {
+            const r = await fetch("/api/login", {
+              method: "POST",
+              headers: { "Content-Type": "application/x-www-form-urlencoded" },
+              body: params.toString(),
+            });
+            const data = await r.json();
+            if (data.success) {
+              sessionStorage.setItem("role", data.role);
+              sessionStorage.setItem("login", fd.get("login"));
+              window.location.href = "main.html";
+            } else {
+              errorBox.textContent = data.message || "Ошибка входа";
+              errorBox.classList.remove("hidden");
+            }
+          } catch (err) {
+            errorBox.textContent = "Сервер недоступен";
+            errorBox.classList.remove("hidden");
+          }
+        });
+    </script>
+  </body>
+</html>

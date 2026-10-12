@@ -1,3 +1,7 @@
+/**
+ * @file db.h
+ * @brief Класс DatabaseManager — обёртка над SQLite.
+ */
 #ifndef FLEETMANAGER_PASSWORD_H
 #define FLEETMANAGER_PASSWORD_H
 
