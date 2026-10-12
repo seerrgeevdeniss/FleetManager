@@ -12,6 +12,7 @@
         <div class="user-block">
           <span>Администратор</span>
           <span class="avatar" id="user-avatar">A</span>
+          <button class="btn btn-logout-top" onclick="logout()">Выйти</button>
         </div>
       </header>
 
@@ -63,136 +64,74 @@
             </div>
             <div
               id="vehicles-list"
-              style="max-width: 640px; margin: 0 auto"
+              style="max-width: 680px; margin: 0 auto"
             ></div>
           </section>
 
           <section id="tab-drivers" class="tab-content hidden">
             <h2>Водители</h2>
-            <div class="table-wrap" id="drivers-grid"></div>
-            <div class="table-actions">
-              <button class="btn" onclick="openDriverForm()">Добавить</button>
-              <button class="btn">&gt;&gt;&gt;</button>
+            <div style="text-align: center; margin-bottom: 14px">
+              <button
+                class="btn"
+                style="padding: 10px 40px"
+                onclick="openDriverForm()"
+              >
+                Добавить водителя
+              </button>
             </div>
-            <div class="page-info">1 страница</div>
+            <div
+              id="drivers-list"
+              style="max-width: 680px; margin: 0 auto"
+            ></div>
           </section>
 
           <section id="tab-trips" class="tab-content hidden">
             <h2>Путевые листы</h2>
-            <div style="max-width: 520px; margin: 0 auto">
-              <div class="form-row">
-                <label>Номер путевого листа</label><input type="text" />
-              </div>
-              <div class="form-row">
-                <label>Дата</label><input type="text" />
-              </div>
-              <div class="form-row">
-                <label>Водитель (ФИО)</label><input type="text" />
-              </div>
-              <div class="form-row">
-                <label>Транспортное средство</label><input type="text" />
-              </div>
-              <div class="form-row">
-                <label>Маршрут</label><input type="text" />
-              </div>
-              <div class="form-row">
-                <label>Расход топлива (факт, л)</label><input type="text" />
-              </div>
-              <div class="form-row">
-                <label>Статус</label><input type="text" />
-              </div>
-            </div>
-            <div class="form-actions">
-              <button class="btn">Добавить</button>
-              <button class="btn">Сбросить</button>
-              <button class="btn" onclick="openInfo('trips')">
-                Посмотреть информацию
+            <div style="text-align: center; margin-bottom: 14px">
+              <button
+                class="btn"
+                style="padding: 10px 40px"
+                onclick="openTripForm()"
+              >
+                Добавить путевой лист
               </button>
             </div>
+            <div id="trips-list" style="max-width: 680px; margin: 0 auto"></div>
           </section>
 
           <section id="tab-maintenance" class="tab-content hidden">
             <h2>ТО и техосмотры</h2>
-            <div style="max-width: 520px; margin: 0 auto">
-              <div class="form-row">
-                <label>Транспортное средство</label><input type="text" />
-              </div>
-              <div class="form-row">
-                <label>Вид</label><input type="text" />
-              </div>
-              <div class="form-row">
-                <label>Дата проведения</label><input type="text" />
-              </div>
-              <div class="form-row">
-                <label>Пробег на момент ТО</label><input type="text" />
-              </div>
-              <div class="form-row">
-                <label>Результат</label><input type="text" />
-              </div>
-              <div class="form-row">
-                <label>Дата следующего ТО</label><input type="text" />
-              </div>
-            </div>
-            <div class="form-actions">
-              <button class="btn">Добавить</button>
-              <button class="btn">Сбросить</button>
-              <button class="btn" onclick="openInfo('maintenance')">
-                Посмотреть информацию
-              </button>
+            <div style="text-align: center; padding: 60px 20px; color: #777">
+              Функция находится в разработке.
             </div>
           </section>
 
           <section id="tab-policies" class="tab-content hidden">
             <h2>Полисы</h2>
-            <div style="max-width: 520px; margin: 0 auto">
-              <div class="form-row">
-                <label>Транспортное средство</label><input type="text" />
-              </div>
-              <div class="form-row">
-                <label>Тип полиса</label><input type="text" />
-              </div>
-              <div class="form-row">
-                <label>Номер полиса</label><input type="text" />
-              </div>
-              <div class="form-row">
-                <label>Страховая компания</label><input type="text" />
-              </div>
-              <div class="form-row">
-                <label>Срок действия</label><input type="text" />
-              </div>
-              <div class="form-row">
-                <label>Стоимость</label><input type="text" />
-              </div>
-              <div class="form-row">
-                <label>Статус</label><input type="text" />
-              </div>
-            </div>
-            <div class="form-actions">
-              <button class="btn">Добавить</button>
-              <button class="btn">Сбросить</button>
-              <button class="btn" onclick="openInfo('policies')">
-                Посмотреть информацию
+            <div style="text-align: center; margin-bottom: 14px">
+              <button
+                class="btn"
+                style="padding: 10px 40px"
+                onclick="openPolicyForm()"
+              >
+                Добавить полис
               </button>
             </div>
+            <div
+              id="policies-list"
+              style="max-width: 680px; margin: 0 auto"
+            ></div>
           </section>
         </main>
       </div>
     </div>
 
-    <div id="modal" class="modal-overlay hidden">
-      <div class="modal">
-        <h3 id="modal-title">Информация</h3>
-        <div class="modal-body" id="modal-body"></div>
-        <div class="modal-actions">
-          <button class="btn" onclick="closeModal()">Закрыть</button>
-        </div>
-      </div>
-    </div>
-
+    <!-- Модальное окно — ТС -->
     <div id="vehicle-modal" class="modal-overlay hidden">
       <div class="modal">
-        <h3>Добавление ТС</h3>
+        <h3 id="vehicle-modal-title">Добавление ТС</h3>
         <form id="vehicle-form">
+          <input type="hidden" name="id" value="0" />
           <div class="form-row">
             <label>Госномер</label
             ><input type="text" name="gos_number" required />
@@ -221,22 +160,24 @@
           </div>
           <div class="form-row">
             <label>Водитель</label
-            ><input type="text" name="driver_id" value="0" />
+            ><input type="number" name="driver_id" value="0" />
           </div>
           <div class="form-actions">
-            <button type="submit" class="btn">Добавить</button>
+            <button type="submit" class="btn">Сохранить</button>
             <button type="button" class="btn" onclick="closeVehicleForm()">
-              Сбросить
+              Отмена
             </button>
           </div>
         </form>
       </div>
     </div>
 
+    <!-- Модальное окно — водитель -->
     <div id="driver-modal" class="modal-overlay hidden">
       <div class="modal">
-        <h3>Добавление водителя</h3>
+        <h3 id="driver-modal-title">Добавление водителя</h3>
         <form id="driver-form">
+          <input type="hidden" name="id" value="0" />
           <div class="form-row">
             <label>ФИО</label><input type="text" name="fio" required />
           </div>
@@ -259,14 +200,116 @@
             />
           </div>
           <div class="form-actions">
-            <button type="submit" class="btn">Добавить</button>
+            <button type="submit" class="btn">Сохранить</button>
             <button type="button" class="btn" onclick="closeDriverForm()">
-              Сбросить
+              Отмена
             </button>
           </div>
         </form>
       </div>
     </div>
+
+    <!-- Модальное окно — путевой лист -->
+    <div id="trip-modal" class="modal-overlay hidden">
+      <div class="modal">
+        <h3>Добавление путевого листа</h3>
+        <form id="trip-form">
+          <div class="form-row">
+            <label>Номер</label><input type="text" name="number" required />
+          </div>
+          <div class="form-row">
+            <label>Дата</label
+            ><input type="text" name="date" placeholder="YYYY-MM-DD" required />
+          </div>
+          <div class="form-row">
+            <label>ID водителя</label
+            ><input type="number" name="driver_id" value="1" />
+          </div>
+          <div class="form-row">
+            <label>ID ТС</label
+            ><input type="number" name="vehicle_id" value="1" />
+          </div>
+          <div class="form-row">
+            <label>Маршрут</label><input type="text" name="route" />
+          </div>
+          <div class="form-row">
+            <label>Пробег начало</label
+            ><input type="number" name="mileage_start" value="0" />
+          </div>
+          <div class="form-row">
+            <label>Пробег конец</label
+            ><input type="number" name="mileage_end" value="0" />
+          </div>
+          <div class="form-row">
+            <label>Расход топлива, л</label
+            ><input
+              type="number"
+              step="0.1"
+              name="fuel_consumption"
+              value="0"
+            />
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn">Сохранить</button>
+            <button type="button" class="btn" onclick="closeTripForm()">
+              Отмена
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Модальное окно — полис -->
+    <div id="policy-modal" class="modal-overlay hidden">
+      <div class="modal">
+        <h3>Добавление полиса</h3>
+        <form id="policy-form">
+          <div class="form-row">
+            <label>ID ТС</label
+            ><input type="number" name="vehicle_id" value="1" />
+          </div>
+          <div class="form-row">
+            <label>Тип полиса</label>
+            <select name="type">
+              <option value="osago">ОСАГО</option>
+              <option value="kasko">КАСКО</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>Номер полиса</label
+            ><input type="text" name="number" required />
+          </div>
+          <div class="form-row">
+            <label>Страховая</label><input type="text" name="company" />
+          </div>
+          <div class="form-row">
+            <label>Действ. с</label
+            ><input type="text" name="valid_from" placeholder="YYYY-MM-DD" />
+          </div>
+          <div class="form-row">
+            <label>Действ. до</label
+            ><input
+              type="text"
+              name="valid_until"
+              placeholder="YYYY-MM-DD"
+              required
+            />
+          </div>
+          <div class="form-row">
+            <label>Стоимость</label
+            ><input type="number" name="cost" value="0" />
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn">Сохранить</button>
+            <button type="button" class="btn" onclick="closePolicyForm()">
+              Отмена
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="notification" class="notification hidden"></div>
 
     <script src="js/app.js"></script>
   </body>

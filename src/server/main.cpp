@@ -24,18 +24,6 @@
 /**
  * @file main.cpp
  * @brief HTTP-сервер приложения FleetManager.
- *
- * День 10: реализация REST API + отдача статики из web/.
- */
-
-/**
- * @file main.cpp
- * @brief HTTP-сервер приложения FleetManager.
- */
-
-/**
- * @file main.cpp
- * @brief HTTP-сервер приложения FleetManager.
  */
 
 #include <iostream>
@@ -164,40 +152,35 @@ int main() {
         }
 
         httplib::Server srv;
-
         fs::path web_root = project_root / "web";
         srv.set_mount_point("/", web_root.string());
 
-        // --- Login ---
+        // LOGIN
         srv.Post("/api/login", [&](const httplib::Request& req, httplib::Response& res) {
-            auto login = req.get_param_value("login");
-            auto password = req.get_param_value("password");
-            auto result = auth.login(login, password);
-
+            auto result = auth.login(req.get_param_value("login"),
+                                     req.get_param_value("password"));
             std::ostringstream o;
             if (result.success && result.user) {
                 o << "{\"success\":true,\"role\":\""
-                  << User::role_to_string(result.user->role)
-                  << "\",\"message\":\"" << json_escape(result.message) << "\"}";
+                  << User::role_to_string(result.user->role) << "\"}";
             } else {
                 o << "{\"success\":false,\"message\":\"" << json_escape(result.message) << "\"}";
             }
             res.set_content(o.str(), "application/json");
         });
 
-        // --- Register ---
+        // REGISTER
         srv.Post("/api/register", [&](const httplib::Request& req, httplib::Response& res) {
-            auto login = req.get_param_value("login");
-            auto password = req.get_param_value("password");
-            int id = auth.register_user(login, password, UserRole::DRIVER);
-
+            int id = auth.register_user(req.get_param_value("login"),
+                                        req.get_param_value("password"),
+                                        UserRole::DRIVER);
             std::ostringstream o;
             if (id > 0) o << "{\"success\":true,\"id\":" << id << "}";
             else o << "{\"success\":false,\"message\":\"Логин занят или пароль < 6 символов\"}";
             res.set_content(o.str(), "application/json");
         });
 
-        // --- GET /api/vehicles ---
+        // VEHICLES — GET
         srv.Get("/api/vehicles", [&](const httplib::Request&, httplib::Response& res) {
             std::ostringstream o;
             o << "[";
@@ -211,7 +194,7 @@ int main() {
             res.set_content(o.str(), "application/json");
         });
 
-        // --- POST /api/vehicles (create) ---
+        // VEHICLES — CREATE
         srv.Post("/api/vehicles", [&](const httplib::Request& req, httplib::Response& res) {
             Vehicle v;
             v.gos_number = req.get_param_value("gos_number");
@@ -231,18 +214,38 @@ int main() {
             res.set_content(o.str(), "application/json");
         });
 
-        // --- POST /api/vehicles/delete ---
+        // VEHICLES — UPDATE
+        srv.Post("/api/vehicles/update", [&](const httplib::Request& req, httplib::Response& res) {
+            Vehicle v;
+            v.id = std::atoi(req.get_param_value("id").c_str());
+            v.gos_number = req.get_param_value("gos_number");
+            v.brand = req.get_param_value("brand");
+            v.model = req.get_param_value("model");
+            v.year = std::atoi(req.get_param_value("year").c_str());
+            v.vin = req.get_param_value("vin");
+            v.type = req.get_param_value("type");
+            v.mileage = std::atoi(req.get_param_value("mileage").c_str());
+            v.state = req.get_param_value("state");
+            v.driver_id = std::atoi(req.get_param_value("driver_id").c_str());
+
+            bool ok = vehicle_repo.update(v);
+            std::ostringstream o;
+            if (ok) o << "{\"success\":true}";
+            else o << "{\"success\":false,\"message\":\"Ошибка обновления ТС\"}";
+            res.set_content(o.str(), "application/json");
+        });
+
+        // VEHICLES — DELETE
         srv.Post("/api/vehicles/delete", [&](const httplib::Request& req, httplib::Response& res) {
             int id = std::atoi(req.get_param_value("id").c_str());
             bool ok = vehicle_repo.remove(id);
-
             std::ostringstream o;
             if (ok) o << "{\"success\":true}";
             else o << "{\"success\":false,\"message\":\"Не удалось удалить ТС\"}";
             res.set_content(o.str(), "application/json");
         });
 
-        // --- GET /api/drivers ---
+        // DRIVERS — GET
         srv.Get("/api/drivers", [&](const httplib::Request&, httplib::Response& res) {
             std::ostringstream o;
             o << "[";
@@ -256,7 +259,7 @@ int main() {
             res.set_content(o.str(), "application/json");
         });
 
-        // --- POST /api/drivers (create) ---
+        // DRIVERS — CREATE
         srv.Post("/api/drivers", [&](const httplib::Request& req, httplib::Response& res) {
             Driver d;
             d.fio = req.get_param_value("fio");
@@ -272,7 +275,34 @@ int main() {
             res.set_content(o.str(), "application/json");
         });
 
-        // --- GET /api/trip_sheets ---
+        // DRIVERS — UPDATE
+        srv.Post("/api/drivers/update", [&](const httplib::Request& req, httplib::Response& res) {
+            Driver d;
+            d.id = std::atoi(req.get_param_value("id").c_str());
+            d.fio = req.get_param_value("fio");
+            d.license_number = req.get_param_value("license_number");
+            d.experience = std::atoi(req.get_param_value("experience").c_str());
+            d.categories = req.get_param_value("categories");
+            d.license_valid_until = req.get_param_value("license_valid_until");
+
+            bool ok = driver_repo.update(d);
+            std::ostringstream o;
+            if (ok) o << "{\"success\":true}";
+            else o << "{\"success\":false,\"message\":\"Ошибка обновления водителя\"}";
+            res.set_content(o.str(), "application/json");
+        });
+
+        // DRIVERS — DELETE
+        srv.Post("/api/drivers/delete", [&](const httplib::Request& req, httplib::Response& res) {
+            int id = std::atoi(req.get_param_value("id").c_str());
+            bool ok = driver_repo.remove(id);
+            std::ostringstream o;
+            if (ok) o << "{\"success\":true}";
+            else o << "{\"success\":false,\"message\":\"Не удалось удалить водителя\"}";
+            res.set_content(o.str(), "application/json");
+        });
+
+        // TRIP SHEETS — GET
         srv.Get("/api/trip_sheets", [&](const httplib::Request&, httplib::Response& res) {
             std::ostringstream o;
             o << "[";
@@ -286,7 +316,40 @@ int main() {
             res.set_content(o.str(), "application/json");
         });
 
-        // --- GET /api/policies/expiring ---
+        // TRIP SHEETS — CREATE
+        srv.Post("/api/trip_sheets", [&](const httplib::Request& req, httplib::Response& res) {
+            TripSheet t;
+            t.number = req.get_param_value("number");
+            t.date = req.get_param_value("date");
+            t.driver_id = std::atoi(req.get_param_value("driver_id").c_str());
+            t.vehicle_id = std::atoi(req.get_param_value("vehicle_id").c_str());
+            t.route = req.get_param_value("route");
+            t.mileage_start = std::atoi(req.get_param_value("mileage_start").c_str());
+            t.mileage_end = std::atoi(req.get_param_value("mileage_end").c_str());
+            t.fuel_consumption = std::atof(req.get_param_value("fuel_consumption").c_str());
+
+            int id = trip_repo.create(t);
+            std::ostringstream o;
+            if (id > 0) o << "{\"success\":true,\"id\":" << id << "}";
+            else o << "{\"success\":false,\"message\":\"Ошибка создания путевого листа\"}";
+            res.set_content(o.str(), "application/json");
+        });
+
+        // POLICIES — GET all
+        srv.Get("/api/policies", [&](const httplib::Request&, httplib::Response& res) {
+            std::ostringstream o;
+            o << "[";
+            bool first = true;
+            for (const auto& p : policy_repo.find_all()) {
+                if (!first) o << ",";
+                first = false;
+                o << policy_to_json(p);
+            }
+            o << "]";
+            res.set_content(o.str(), "application/json");
+        });
+
+        // POLICIES — GET expiring
         srv.Get("/api/policies/expiring", [&](const httplib::Request&, httplib::Response& res) {
             std::ostringstream o;
             o << "[";
@@ -300,12 +363,27 @@ int main() {
             res.set_content(o.str(), "application/json");
         });
 
-        std::cout << "Сервер запущен на http://localhost:8081" << std::endl;
-        std::cout << "Корень проекта: " << project_root << std::endl;
-        std::cout << "Статика из: " << web_root << std::endl;
+        // POLICIES — CREATE
+        srv.Post("/api/policies", [&](const httplib::Request& req, httplib::Response& res) {
+            InsurancePolicy p;
+            p.vehicle_id = std::atoi(req.get_param_value("vehicle_id").c_str());
+            p.type = InsurancePolicy::string_to_type(req.get_param_value("type"));
+            p.number = req.get_param_value("number");
+            p.company = req.get_param_value("company");
+            p.valid_from = req.get_param_value("valid_from");
+            p.valid_until = req.get_param_value("valid_until");
+            p.cost = std::atof(req.get_param_value("cost").c_str());
 
+            int id = policy_repo.create(p);
+            std::ostringstream o;
+            if (id > 0) o << "{\"success\":true,\"id\":" << id << "}";
+            else o << "{\"success\":false,\"message\":\"Ошибка создания полиса\"}";
+            res.set_content(o.str(), "application/json");
+        });
+
+        std::cout << "Сервер запущен на http://localhost:8081" << std::endl;
         if (!srv.listen("0.0.0.0", 8081)) {
-            std::cerr << "Не удалось запустить сервер (порт занят?)" << std::endl;
+            std::cerr << "Не удалось запустить сервер" << std::endl;
             return 1;
         }
 

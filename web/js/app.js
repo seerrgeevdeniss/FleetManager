@@ -9,15 +9,18 @@ document.addEventListener("DOMContentLoaded", () => {
     btn.addEventListener("click", () => switchTab(btn.dataset.tab));
   });
 
-  loadCounters();
-  loadVehicles();
-  loadDrivers();
+  loadAll();
 
-  const vForm = document.getElementById("vehicle-form");
-  if (vForm) vForm.addEventListener("submit", onVehicleSubmit);
-
-  const dForm = document.getElementById("driver-form");
-  if (dForm) dForm.addEventListener("submit", onDriverSubmit);
+  document
+    .getElementById("vehicle-form")
+    .addEventListener("submit", onVehicleSubmit);
+  document
+    .getElementById("driver-form")
+    .addEventListener("submit", onDriverSubmit);
+  document.getElementById("trip-form").addEventListener("submit", onTripSubmit);
+  document
+    .getElementById("policy-form")
+    .addEventListener("submit", onPolicySubmit);
 });
 
 function switchTab(tab) {
@@ -40,115 +43,26 @@ function logout() {
   window.location.href = "index.html";
 }
 
-function openInfo(section) {
-  const modal = document.getElementById("modal");
-  const title = document.getElementById("modal-title");
-  const body = document.getElementById("modal-body");
-  const titles = {
-    trips: "Путевые листы",
-    maintenance: "ТО и техосмотры",
-    policies: "Полисы",
-  };
-  title.textContent = titles[section] || "Информация";
-  body.textContent = "Здесь будет отображаться подробная информация.";
-  modal.classList.remove("hidden");
-}
-function closeModal() {
-  document.getElementById("modal").classList.add("hidden");
+/* ===== Уведомления ===== */
+function notify(msg, type = "success") {
+  const el = document.getElementById("notification");
+  el.textContent = msg;
+  el.className = "notification " + type;
+  el.classList.remove("hidden");
+  setTimeout(() => el.classList.add("hidden"), 3000);
 }
 
-/* ===== Форма добавления ТС ===== */
-function openVehicleForm() {
-  document.getElementById("vehicle-modal").classList.remove("hidden");
-}
-function closeVehicleForm() {
-  document.getElementById("vehicle-modal").classList.add("hidden");
-  document.getElementById("vehicle-form").reset();
-}
-async function onVehicleSubmit(e) {
-  e.preventDefault();
-  const fd = new FormData(e.target);
-  const params = new URLSearchParams();
-  for (const [k, v] of fd.entries()) params.append(k, v);
-
-  try {
-    const r = await fetch("/api/vehicles", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: params.toString(),
-    });
-    const data = await r.json();
-    if (data.success) {
-      closeVehicleForm();
-      loadVehicles();
-      loadCounters();
-    } else {
-      alert(data.message || "Ошибка добавления");
-    }
-  } catch (err) {
-    alert("Сервер недоступен");
-  }
+/* ===== Загрузка всего ===== */
+async function loadAll() {
+  await Promise.all([
+    loadCounters(),
+    loadVehicles(),
+    loadDrivers(),
+    loadTrips(),
+    loadPolicies(),
+  ]);
 }
 
-/* ===== Удаление ТС ===== */
-async function deleteVehicle(id, gos_number) {
-  if (!confirm(`Удалить транспортное средство ${gos_number}?`)) return;
-
-  const params = new URLSearchParams();
-  params.append("id", id);
-
-  try {
-    const r = await fetch("/api/vehicles/delete", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: params.toString(),
-    });
-    const data = await r.json();
-    if (data.success) {
-      loadVehicles();
-      loadCounters();
-    } else {
-      alert(data.message || "Ошибка удаления");
-    }
-  } catch (err) {
-    alert("Сервер недоступен");
-  }
-}
-
-/* ===== Форма добавления водителя ===== */
-function openDriverForm() {
-  document.getElementById("driver-modal").classList.remove("hidden");
-}
-function closeDriverForm() {
-  document.getElementById("driver-modal").classList.add("hidden");
-  document.getElementById("driver-form").reset();
-}
-async function onDriverSubmit(e) {
-  e.preventDefault();
-  const fd = new FormData(e.target);
-  const params = new URLSearchParams();
-  for (const [k, v] of fd.entries()) params.append(k, v);
-
-  try {
-    const r = await fetch("/api/drivers", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: params.toString(),
-    });
-    const data = await r.json();
-    if (data.success) {
-      closeDriverForm();
-      loadDrivers();
-      loadCounters();
-    } else {
-      alert(data.message || "Ошибка добавления");
-    }
-  } catch (err) {
-    alert("Сервер недоступен");
-  }
-}
-
-/* ===== Загрузка данных ===== */
 async function loadCounters() {
   const [vehicles, drivers, policies] = await Promise.all([
     fetchJSON("/api/vehicles"),
@@ -163,6 +77,7 @@ async function loadCounters() {
   if (pEl) pEl.textContent = `${policies.length} истек.`;
 }
 
+/* ===== Транспортные средства ===== */
 async function loadVehicles() {
   const data = await fetchJSON("/api/vehicles");
   const container = document.getElementById("vehicles-list");
@@ -177,39 +92,343 @@ async function loadVehicles() {
 
   data.forEach((v) => {
     const div = document.createElement("div");
-    div.className = "dash-card";
-    div.style.marginBottom = "8px";
-    div.style.padding = "14px 16px";
-    div.style.display = "flex";
-    div.style.justifyContent = "space-between";
-    div.style.alignItems = "center";
-    div.style.cursor = "default";
+    div.className = "list-card";
     div.innerHTML = `
-            <div style="text-align:left;">
+            <div class="list-card-info">
                 <div class="title">${v.gos_number} — ${v.brand} ${v.model}</div>
-                <div class="subtitle">${v.year} · ${v.type} · ${v.mileage} км</div>
+                <div class="subtitle">${v.year} · ${v.type} · ${v.mileage} км · ${v.state}</div>
             </div>
-            <button class="btn btn-delete" onclick="deleteVehicle(${v.id}, '${v.gos_number}')">Удалить</button>
+            <div class="list-card-actions">
+                <button class="btn btn-edit" onclick='openVehicleForm(${JSON.stringify(v).replace(/'/g, "&#39;")})'>Изменить</button>
+                <button class="btn btn-delete" onclick="deleteVehicle(${v.id}, '${v.gos_number}')">Удалить</button>
+            </div>
         `;
     container.appendChild(div);
   });
 }
 
+function openVehicleForm(vehicle) {
+  const form = document.getElementById("vehicle-form");
+  const title = document.getElementById("vehicle-modal-title");
+  form.reset();
+
+  if (vehicle) {
+    title.textContent = "Изменение ТС";
+    form.id.value = vehicle.id;
+    form.gos_number.value = vehicle.gos_number;
+    form.brand.value = vehicle.brand;
+    form.model.value = vehicle.model;
+    form.year.value = vehicle.year;
+    form.vin.value = vehicle.vin;
+    form.type.value = vehicle.type;
+    form.mileage.value = vehicle.mileage;
+    form.state.value = vehicle.state;
+    form.driver_id.value = vehicle.driver_id;
+  } else {
+    title.textContent = "Добавление ТС";
+    form.id.value = 0;
+  }
+
+  document.getElementById("vehicle-modal").classList.remove("hidden");
+}
+function closeVehicleForm() {
+  document.getElementById("vehicle-modal").classList.add("hidden");
+}
+
+async function onVehicleSubmit(e) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const params = new URLSearchParams();
+  for (const [k, v] of fd.entries()) params.append(k, v);
+
+  const isEdit = fd.get("id") && fd.get("id") !== "0";
+  const url = isEdit ? "/api/vehicles/update" : "/api/vehicles";
+
+  try {
+    const r = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: params.toString(),
+    });
+    const data = await r.json();
+    if (data.success) {
+      closeVehicleForm();
+      notify(isEdit ? "ТС обновлено" : "ТС добавлено");
+      loadVehicles();
+      loadCounters();
+    } else {
+      notify(data.message || "Ошибка", "error");
+    }
+  } catch (err) {
+    notify("Сервер недоступен", "error");
+  }
+}
+
+async function deleteVehicle(id, gos_number) {
+  if (!confirm(`Удалить ТС ${gos_number}?`)) return;
+  const params = new URLSearchParams();
+  params.append("id", id);
+  try {
+    const r = await fetch("/api/vehicles/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: params.toString(),
+    });
+    const data = await r.json();
+    if (data.success) {
+      notify("ТС удалено");
+      loadVehicles();
+      loadCounters();
+    } else {
+      notify(data.message || "Ошибка удаления", "error");
+    }
+  } catch (err) {
+    notify("Сервер недоступен", "error");
+  }
+}
+
+/* ===== Водители ===== */
 async function loadDrivers() {
   const data = await fetchJSON("/api/drivers");
-  const grid = document.getElementById("drivers-grid");
-  if (!grid) return;
-  grid.innerHTML = "";
+  const container = document.getElementById("drivers-list");
+  if (!container) return;
+  container.innerHTML = "";
+
+  if (data.length === 0) {
+    container.innerHTML =
+      '<div style="text-align:center; color:#777; padding:20px;">Нет водителей</div>';
+    return;
+  }
+
   data.forEach((d) => {
-    ["fio", "license_number", "categories"].forEach((field) => {
-      const cell = document.createElement("div");
-      cell.className = "table-cell";
-      cell.title = d[field] || "";
-      grid.appendChild(cell);
-    });
+    const div = document.createElement("div");
+    div.className = "list-card";
+    div.innerHTML = `
+            <div class="list-card-info">
+                <div class="title">${d.fio}</div>
+                <div class="subtitle">Права: ${d.license_number} · стаж ${d.experience} лет · кат. ${d.categories} · до ${d.license_valid_until}</div>
+            </div>
+            <div class="list-card-actions">
+                <button class="btn btn-edit" onclick='openDriverForm(${JSON.stringify(d).replace(/'/g, "&#39;")})'>Изменить</button>
+                <button class="btn btn-delete" onclick="deleteDriver(${d.id}, '${d.fio.replace(/'/g, "&#39;")}')">Удалить</button>
+            </div>
+        `;
+    container.appendChild(div);
   });
 }
 
+function openDriverForm(driver) {
+  const form = document.getElementById("driver-form");
+  const title = document.getElementById("driver-modal-title");
+  form.reset();
+
+  if (driver) {
+    title.textContent = "Изменение водителя";
+    form.id.value = driver.id;
+    form.fio.value = driver.fio;
+    form.license_number.value = driver.license_number;
+    form.experience.value = driver.experience;
+    form.categories.value = driver.categories;
+    form.license_valid_until.value = driver.license_valid_until;
+  } else {
+    title.textContent = "Добавление водителя";
+    form.id.value = 0;
+  }
+
+  document.getElementById("driver-modal").classList.remove("hidden");
+}
+function closeDriverForm() {
+  document.getElementById("driver-modal").classList.add("hidden");
+}
+
+async function onDriverSubmit(e) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const params = new URLSearchParams();
+  for (const [k, v] of fd.entries()) params.append(k, v);
+
+  const isEdit = fd.get("id") && fd.get("id") !== "0";
+  const url = isEdit ? "/api/drivers/update" : "/api/drivers";
+
+  try {
+    const r = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: params.toString(),
+    });
+    const data = await r.json();
+    if (data.success) {
+      closeDriverForm();
+      notify(isEdit ? "Водитель обновлён" : "Водитель добавлен");
+      loadDrivers();
+      loadCounters();
+    } else {
+      notify(data.message || "Ошибка", "error");
+    }
+  } catch (err) {
+    notify("Сервер недоступен", "error");
+  }
+}
+
+async function deleteDriver(id, fio) {
+  if (!confirm(`Удалить водителя ${fio}?`)) return;
+  const params = new URLSearchParams();
+  params.append("id", id);
+  try {
+    const r = await fetch("/api/drivers/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: params.toString(),
+    });
+    const data = await r.json();
+    if (data.success) {
+      notify("Водитель удалён");
+      loadDrivers();
+      loadCounters();
+    } else {
+      notify(data.message || "Ошибка удаления", "error");
+    }
+  } catch (err) {
+    notify("Сервер недоступен", "error");
+  }
+}
+
+/* ===== Путевые листы ===== */
+async function loadTrips() {
+  const data = await fetchJSON("/api/trip_sheets");
+  const container = document.getElementById("trips-list");
+  if (!container) return;
+  container.innerHTML = "";
+
+  if (data.length === 0) {
+    container.innerHTML =
+      '<div style="text-align:center; color:#777; padding:20px;">Нет путевых листов</div>';
+    return;
+  }
+
+  data.forEach((t) => {
+    const div = document.createElement("div");
+    div.className = "list-card";
+    const status = t.closed
+      ? '<span class="status-badge status-green">Закрыт</span>'
+      : '<span class="status-badge status-yellow">Открыт</span>';
+    div.innerHTML = `
+            <div class="list-card-info">
+                <div class="title">${t.number}</div>
+                <div class="subtitle">${t.date} · маршрут: ${t.route} · ${t.mileage_start} → ${t.mileage_end} км · ${t.fuel_consumption} л</div>
+            </div>
+            <div class="list-card-actions">${status}</div>
+        `;
+    container.appendChild(div);
+  });
+}
+
+function openTripForm() {
+  document.getElementById("trip-form").reset();
+  document.getElementById("trip-modal").classList.remove("hidden");
+}
+function closeTripForm() {
+  document.getElementById("trip-modal").classList.add("hidden");
+}
+
+async function onTripSubmit(e) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const params = new URLSearchParams();
+  for (const [k, v] of fd.entries()) params.append(k, v);
+
+  try {
+    const r = await fetch("/api/trip_sheets", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: params.toString(),
+    });
+    const data = await r.json();
+    if (data.success) {
+      closeTripForm();
+      notify("Путевой лист добавлен");
+      loadTrips();
+    } else {
+      notify(data.message || "Ошибка", "error");
+    }
+  } catch (err) {
+    notify("Сервер недоступен", "error");
+  }
+}
+
+/* ===== Полисы ===== */
+async function loadPolicies() {
+  const data = await fetchJSON("/api/policies");
+  const container = document.getElementById("policies-list");
+  if (!container) return;
+  container.innerHTML = "";
+
+  if (data.length === 0) {
+    container.innerHTML =
+      '<div style="text-align:center; color:#777; padding:20px;">Нет полисов</div>';
+    return;
+  }
+
+  data.forEach((p) => {
+    const div = document.createElement("div");
+    div.className = "list-card";
+    const type = p.type === "osago" ? "ОСАГО" : "КАСКО";
+
+    const today = new Date();
+    const until = new Date(p.valid_until);
+    const diffDays = Math.ceil((until - today) / 86400000);
+    let status = '<span class="status-badge status-green">Действует</span>';
+    if (diffDays < 0)
+      status = '<span class="status-badge status-red">Просрочен</span>';
+    else if (diffDays <= 30)
+      status = '<span class="status-badge status-yellow">Истекает</span>';
+
+    div.innerHTML = `
+            <div class="list-card-info">
+                <div class="title">${type} ${p.number}</div>
+                <div class="subtitle">${p.company} · до ${p.valid_until} · ${p.cost} ₽</div>
+            </div>
+            <div class="list-card-actions">${status}</div>
+        `;
+    container.appendChild(div);
+  });
+}
+
+function openPolicyForm() {
+  document.getElementById("policy-form").reset();
+  document.getElementById("policy-modal").classList.remove("hidden");
+}
+function closePolicyForm() {
+  document.getElementById("policy-modal").classList.add("hidden");
+}
+
+async function onPolicySubmit(e) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const params = new URLSearchParams();
+  for (const [k, v] of fd.entries()) params.append(k, v);
+
+  try {
+    const r = await fetch("/api/policies", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: params.toString(),
+    });
+    const data = await r.json();
+    if (data.success) {
+      closePolicyForm();
+      notify("Полис добавлен");
+      loadPolicies();
+      loadCounters();
+    } else {
+      notify(data.message || "Ошибка", "error");
+    }
+  } catch (err) {
+    notify("Сервер недоступен", "error");
+  }
+}
+
+/* ===== Утилиты ===== */
 async function fetchJSON(url) {
   try {
     const r = await fetch(url);
@@ -221,10 +440,13 @@ async function fetchJSON(url) {
 
 window.switchTab = switchTab;
 window.logout = logout;
-window.openInfo = openInfo;
-window.closeModal = closeModal;
 window.openVehicleForm = openVehicleForm;
 window.closeVehicleForm = closeVehicleForm;
 window.deleteVehicle = deleteVehicle;
 window.openDriverForm = openDriverForm;
 window.closeDriverForm = closeDriverForm;
+window.deleteDriver = deleteDriver;
+window.openTripForm = openTripForm;
+window.closeTripForm = closeTripForm;
+window.openPolicyForm = openPolicyForm;
+window.closePolicyForm = closePolicyForm;
