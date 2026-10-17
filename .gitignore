@@ -1,8 +1,7 @@
 build/
+build-win/
 *.o
-*.out
-data/*.db
-.idea/
-.vscode/
-*.log
-*.swp
+*.exe
+*.dll
+CMakeCache.txt
+CMakeFiles/

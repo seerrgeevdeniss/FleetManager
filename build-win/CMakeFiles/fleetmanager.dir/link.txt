@@ -1,3 +1,0 @@
-C:\msys64\ucrt64\bin\cmake.exe -E rm -f CMakeFiles\fleetmanager.dir/objects.a
-C:\msys64\ucrt64\bin\ar.exe qc CMakeFiles\fleetmanager.dir/objects.a @CMakeFiles\fleetmanager.dir\objects1.rsp
-C:\msys64\ucrt64\bin\c++.exe -O3 -DNDEBUG -Wl,--whole-archive CMakeFiles\fleetmanager.dir/objects.a -Wl,--no-whole-archive -o bin\fleetmanager.exe -Wl,--out-implib,libfleetmanager.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles\fleetmanager.dir\linkLibs.rsp
