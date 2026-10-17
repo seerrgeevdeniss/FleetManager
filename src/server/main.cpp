@@ -26,6 +26,19 @@
  * @brief HTTP-сервер приложения FleetManager.
  */
 
+/**
+ * @file main.cpp
+ * @brief HTTP-сервер приложения FleetManager.
+ *
+ * День 10-12: REST API + отдача статики из web/.
+ * Кроссплатформенный: Linux + Windows.
+ */
+
+#ifdef _WIN32
+#include <winsock2.h>
+#include <windows.h>
+#endif
+
 #include <iostream>
 #include <filesystem>
 #include <sstream>
@@ -40,6 +53,7 @@
 #include "repositories/trip_sheet_repository.h"
 #include "repositories/fuel_repository.h"
 #include "repositories/policy_repository.h"
+#include "repositories/maintenance_repository.h"
 #include "services/auth_service.h"
 
 namespace fs = std::filesystem;
@@ -122,12 +136,46 @@ static std::string policy_to_json(const InsurancePolicy& p) {
     return o.str();
 }
 
+static std::string maintenance_to_json(const Maintenance& m) {
+    std::ostringstream o;
+    o << "{"
+      << "\"id\":" << m.id << ","
+      << "\"vehicle_id\":" << m.vehicle_id << ","
+      << "\"kind\":\"" << json_escape(m.kind) << "\","
+      << "\"date\":\"" << json_escape(m.date) << "\","
+      << "\"mileage\":" << m.mileage << ","
+      << "\"result\":\"" << json_escape(m.result) << "\","
+      << "\"next_date\":\"" << json_escape(m.next_date) << "\""
+      << "}";
+    return o.str();
+}
+
 int main() {
     try {
+        // ---- Определение путей (Windows + Linux) ----
+#ifdef _WIN32
+        char buf[MAX_PATH];
+        GetModuleFileNameA(NULL, buf, MAX_PATH);
+        fs::path exe_path(buf);
+#else
         fs::path exe_path = fs::canonical("/proc/self/exe");
+#endif
+
+        // exe лежит в build-win/bin/ или build/bin/
+        // три parent_path() -> корень проекта
         fs::path project_root = exe_path.parent_path().parent_path().parent_path();
         fs::path db_path = project_root / "data" / "fleetmanager.db";
+        fs::path web_root = project_root / "web";
+
         fs::create_directories(db_path.parent_path());
+
+        std::cout << "Корень проекта: " << project_root << std::endl;
+        std::cout << "База данных:    " << db_path << std::endl;
+        std::cout << "Статика из:     " << web_root << std::endl;
+
+        if (!fs::exists(web_root)) {
+            std::cerr << "ВНИМАНИЕ: папка web/ не найдена!" << std::endl;
+        }
 
         DatabaseManager db(db_path.string());
 
@@ -137,6 +185,7 @@ int main() {
         TripSheetRepository trip_repo(db);
         FuelRepository fuel_repo(db);
         PolicyRepository policy_repo(db);
+        MaintenanceRepository maintenance_repo(db);
         AuthService auth(user_repo);
 
         user_repo.init_schema();
@@ -145,6 +194,7 @@ int main() {
         trip_repo.init_schema();
         fuel_repo.init_schema();
         policy_repo.init_schema();
+        maintenance_repo.init_schema();
 
         if (!user_repo.find_by_login("admin").has_value()) {
             auth.register_user("admin", "admin123", UserRole::ADMIN);
@@ -152,7 +202,6 @@ int main() {
         }
 
         httplib::Server srv;
-        fs::path web_root = project_root / "web";
         srv.set_mount_point("/", web_root.string());
 
         // LOGIN
@@ -169,7 +218,6 @@ int main() {
             res.set_content(o.str(), "application/json");
         });
 
-        // REGISTER
         srv.Post("/api/register", [&](const httplib::Request& req, httplib::Response& res) {
             int id = auth.register_user(req.get_param_value("login"),
                                         req.get_param_value("password"),
@@ -180,21 +228,18 @@ int main() {
             res.set_content(o.str(), "application/json");
         });
 
-        // VEHICLES — GET
+        // VEHICLES
         srv.Get("/api/vehicles", [&](const httplib::Request&, httplib::Response& res) {
-            std::ostringstream o;
-            o << "[";
+            std::ostringstream o; o << "[";
             bool first = true;
             for (const auto& v : vehicle_repo.find_all()) {
-                if (!first) o << ",";
-                first = false;
+                if (!first) o << ","; first = false;
                 o << vehicle_to_json(v);
             }
             o << "]";
             res.set_content(o.str(), "application/json");
         });
 
-        // VEHICLES — CREATE
         srv.Post("/api/vehicles", [&](const httplib::Request& req, httplib::Response& res) {
             Vehicle v;
             v.gos_number = req.get_param_value("gos_number");
@@ -206,7 +251,6 @@ int main() {
             v.mileage = std::atoi(req.get_param_value("mileage").c_str());
             v.state = req.get_param_value("state");
             v.driver_id = std::atoi(req.get_param_value("driver_id").c_str());
-
             int id = vehicle_repo.create(v);
             std::ostringstream o;
             if (id > 0) o << "{\"success\":true,\"id\":" << id << "}";
@@ -214,7 +258,6 @@ int main() {
             res.set_content(o.str(), "application/json");
         });
 
-        // VEHICLES — UPDATE
         srv.Post("/api/vehicles/update", [&](const httplib::Request& req, httplib::Response& res) {
             Vehicle v;
             v.id = std::atoi(req.get_param_value("id").c_str());
@@ -227,7 +270,6 @@ int main() {
             v.mileage = std::atoi(req.get_param_value("mileage").c_str());
             v.state = req.get_param_value("state");
             v.driver_id = std::atoi(req.get_param_value("driver_id").c_str());
-
             bool ok = vehicle_repo.update(v);
             std::ostringstream o;
             if (ok) o << "{\"success\":true}";
@@ -235,7 +277,6 @@ int main() {
             res.set_content(o.str(), "application/json");
         });
 
-        // VEHICLES — DELETE
         srv.Post("/api/vehicles/delete", [&](const httplib::Request& req, httplib::Response& res) {
             int id = std::atoi(req.get_param_value("id").c_str());
             bool ok = vehicle_repo.remove(id);
@@ -245,21 +286,18 @@ int main() {
             res.set_content(o.str(), "application/json");
         });
 
-        // DRIVERS — GET
+        // DRIVERS
         srv.Get("/api/drivers", [&](const httplib::Request&, httplib::Response& res) {
-            std::ostringstream o;
-            o << "[";
+            std::ostringstream o; o << "[";
             bool first = true;
             for (const auto& d : driver_repo.find_all()) {
-                if (!first) o << ",";
-                first = false;
+                if (!first) o << ","; first = false;
                 o << driver_to_json(d);
             }
             o << "]";
             res.set_content(o.str(), "application/json");
         });
 
-        // DRIVERS — CREATE
         srv.Post("/api/drivers", [&](const httplib::Request& req, httplib::Response& res) {
             Driver d;
             d.fio = req.get_param_value("fio");
@@ -267,7 +305,6 @@ int main() {
             d.experience = std::atoi(req.get_param_value("experience").c_str());
             d.categories = req.get_param_value("categories");
             d.license_valid_until = req.get_param_value("license_valid_until");
-
             int id = driver_repo.create(d);
             std::ostringstream o;
             if (id > 0) o << "{\"success\":true,\"id\":" << id << "}";
@@ -275,7 +312,6 @@ int main() {
             res.set_content(o.str(), "application/json");
         });
 
-        // DRIVERS — UPDATE
         srv.Post("/api/drivers/update", [&](const httplib::Request& req, httplib::Response& res) {
             Driver d;
             d.id = std::atoi(req.get_param_value("id").c_str());
@@ -284,39 +320,34 @@ int main() {
             d.experience = std::atoi(req.get_param_value("experience").c_str());
             d.categories = req.get_param_value("categories");
             d.license_valid_until = req.get_param_value("license_valid_until");
-
             bool ok = driver_repo.update(d);
             std::ostringstream o;
             if (ok) o << "{\"success\":true}";
-            else o << "{\"success\":false,\"message\":\"Ошибка обновления водителя\"}";
+            else o << "{\"success\":false,\"message\":\"Ошибка обновления\"}";
             res.set_content(o.str(), "application/json");
         });
 
-        // DRIVERS — DELETE
         srv.Post("/api/drivers/delete", [&](const httplib::Request& req, httplib::Response& res) {
             int id = std::atoi(req.get_param_value("id").c_str());
             bool ok = driver_repo.remove(id);
             std::ostringstream o;
             if (ok) o << "{\"success\":true}";
-            else o << "{\"success\":false,\"message\":\"Не удалось удалить водителя\"}";
+            else o << "{\"success\":false,\"message\":\"Не удалось удалить\"}";
             res.set_content(o.str(), "application/json");
         });
 
-        // TRIP SHEETS — GET
+        // TRIPS
         srv.Get("/api/trip_sheets", [&](const httplib::Request&, httplib::Response& res) {
-            std::ostringstream o;
-            o << "[";
+            std::ostringstream o; o << "[";
             bool first = true;
             for (const auto& t : trip_repo.find_all()) {
-                if (!first) o << ",";
-                first = false;
+                if (!first) o << ","; first = false;
                 o << trip_to_json(t);
             }
             o << "]";
             res.set_content(o.str(), "application/json");
         });
 
-        // TRIP SHEETS — CREATE
         srv.Post("/api/trip_sheets", [&](const httplib::Request& req, httplib::Response& res) {
             TripSheet t;
             t.number = req.get_param_value("number");
@@ -327,43 +358,36 @@ int main() {
             t.mileage_start = std::atoi(req.get_param_value("mileage_start").c_str());
             t.mileage_end = std::atoi(req.get_param_value("mileage_end").c_str());
             t.fuel_consumption = std::atof(req.get_param_value("fuel_consumption").c_str());
-
             int id = trip_repo.create(t);
             std::ostringstream o;
             if (id > 0) o << "{\"success\":true,\"id\":" << id << "}";
-            else o << "{\"success\":false,\"message\":\"Ошибка создания путевого листа\"}";
+            else o << "{\"success\":false,\"message\":\"Ошибка создания\"}";
             res.set_content(o.str(), "application/json");
         });
 
-        // POLICIES — GET all
+        // POLICIES
         srv.Get("/api/policies", [&](const httplib::Request&, httplib::Response& res) {
-            std::ostringstream o;
-            o << "[";
+            std::ostringstream o; o << "[";
             bool first = true;
             for (const auto& p : policy_repo.find_all()) {
-                if (!first) o << ",";
-                first = false;
+                if (!first) o << ","; first = false;
                 o << policy_to_json(p);
             }
             o << "]";
             res.set_content(o.str(), "application/json");
         });
 
-        // POLICIES — GET expiring
         srv.Get("/api/policies/expiring", [&](const httplib::Request&, httplib::Response& res) {
-            std::ostringstream o;
-            o << "[";
+            std::ostringstream o; o << "[";
             bool first = true;
             for (const auto& p : policy_repo.find_expiring_soon(30)) {
-                if (!first) o << ",";
-                first = false;
+                if (!first) o << ","; first = false;
                 o << policy_to_json(p);
             }
             o << "]";
             res.set_content(o.str(), "application/json");
         });
 
-        // POLICIES — CREATE
         srv.Post("/api/policies", [&](const httplib::Request& req, httplib::Response& res) {
             InsurancePolicy p;
             p.vehicle_id = std::atoi(req.get_param_value("vehicle_id").c_str());
@@ -373,11 +397,46 @@ int main() {
             p.valid_from = req.get_param_value("valid_from");
             p.valid_until = req.get_param_value("valid_until");
             p.cost = std::atof(req.get_param_value("cost").c_str());
-
             int id = policy_repo.create(p);
             std::ostringstream o;
             if (id > 0) o << "{\"success\":true,\"id\":" << id << "}";
-            else o << "{\"success\":false,\"message\":\"Ошибка создания полиса\"}";
+            else o << "{\"success\":false,\"message\":\"Ошибка создания\"}";
+            res.set_content(o.str(), "application/json");
+        });
+
+        // MAINTENANCE
+        srv.Get("/api/maintenance", [&](const httplib::Request&, httplib::Response& res) {
+            std::ostringstream o; o << "[";
+            bool first = true;
+            for (const auto& m : maintenance_repo.find_all()) {
+                if (!first) o << ","; first = false;
+                o << maintenance_to_json(m);
+            }
+            o << "]";
+            res.set_content(o.str(), "application/json");
+        });
+
+        srv.Post("/api/maintenance", [&](const httplib::Request& req, httplib::Response& res) {
+            Maintenance m;
+            m.vehicle_id = std::atoi(req.get_param_value("vehicle_id").c_str());
+            m.kind = req.get_param_value("kind");
+            m.date = req.get_param_value("date");
+            m.mileage = std::atoi(req.get_param_value("mileage").c_str());
+            m.result = req.get_param_value("result");
+            m.next_date = req.get_param_value("next_date");
+            int id = maintenance_repo.create(m);
+            std::ostringstream o;
+            if (id > 0) o << "{\"success\":true,\"id\":" << id << "}";
+            else o << "{\"success\":false,\"message\":\"Ошибка создания\"}";
+            res.set_content(o.str(), "application/json");
+        });
+
+        srv.Post("/api/maintenance/delete", [&](const httplib::Request& req, httplib::Response& res) {
+            int id = std::atoi(req.get_param_value("id").c_str());
+            bool ok = maintenance_repo.remove(id);
+            std::ostringstream o;
+            if (ok) o << "{\"success\":true}";
+            else o << "{\"success\":false,\"message\":\"Не удалось удалить\"}";
             res.set_content(o.str(), "application/json");
         });
 

@@ -589,3 +589,31 @@ body {
   border-color: #a94442;
   color: #721c24;
 }
+
+.btn-export {
+  padding: 4px 12px;
+  font-size: 11px;
+  margin-left: 8px;
+  background: #e0e8d0;
+  border: 1px solid #6b8e23;
+  color: #4a6519;
+}
+.btn-export:hover {
+  background: #d0ddb8;
+}
+
+@media print {
+  .sidebar,
+  .topbar,
+  .btn,
+  .modal-overlay,
+  .notification {
+    display: none !important;
+  }
+  .content {
+    border: none;
+  }
+  body {
+    background: #fff;
+  }
+}

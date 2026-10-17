@@ -1,0 +1,3 @@
+C:/Users/zrelo/Desktop/FleetManager/build-win/CMakeFiles/fleetmanager.dir
+C:/Users/zrelo/Desktop/FleetManager/build-win/CMakeFiles/edit_cache.dir
+C:/Users/zrelo/Desktop/FleetManager/build-win/CMakeFiles/rebuild_cache.dir
